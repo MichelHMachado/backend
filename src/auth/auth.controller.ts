@@ -26,8 +26,8 @@ export class AuthController {
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: true,
-      sameSite: 'strict', // Adjust based on your environment
-      maxAge: 60 * 60 * 1000,
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/auth/refresh',
     });
   }
@@ -81,10 +81,7 @@ export class AuthController {
       return res.status(HttpStatus.CREATED).json({ access_token });
     } catch (error) {
       if (error instanceof ConflictException) {
-        console.log(
-          'User already exist!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!S',
-        );
-        return res.status(409).json({ error: error.message });
+        return res.status(HttpStatus.CONFLICT).json({ error: error.message });
       }
       return res
         .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -98,15 +95,19 @@ export class AuthController {
 
     if (!token) {
       return res
-        .status(401)
+        .status(HttpStatus.UNAUTHORIZED)
         .json({ message: 'No token found', isAuthenticated: false });
     }
 
     try {
       const decoded = this.jwtService.verify(token);
-      return res.status(200).json({ isAuthenticated: true, user: decoded });
+      return res
+        .status(HttpStatus.OK)
+        .json({ isAuthenticated: true, user: decoded });
     } catch (error) {
-      return res.status(401).json({ isAuthenticated: false, error });
+      return res
+        .status(HttpStatus.UNAUTHORIZED)
+        .json({ isAuthenticated: false, error });
     }
   }
 
@@ -131,7 +132,7 @@ export class AuthController {
       return res.json({ access_token });
     } catch (error) {
       return res
-        .status(401)
+        .status(HttpStatus.UNAUTHORIZED)
         .json({ message: `Invalid or expired refresh token, ${error}` });
     }
   }
