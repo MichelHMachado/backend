@@ -29,6 +29,7 @@ export class AuthService {
       throw new UnauthorizedException('Usuário e/ou senha incorretos');
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _, ...userData } = user.toJSON();
 
     return userData;
@@ -49,7 +50,10 @@ export class AuthService {
   }
 
   async signUp(userDto: UserDto) {
-    const existingUser = await this.userService.findOneByEmail(userDto.email);
+    const existingUser = await this.validateUser(
+      userDto.email,
+      userDto.password,
+    );
     if (existingUser) {
       throw new ConflictException('User already exists');
     }
