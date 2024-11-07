@@ -22,9 +22,9 @@
   },
   "include": [
     "src/**/*.ts",
-    "migrations/**/*.js",
-    "seeders/**/*.ts",
-    "models/**/*.ts",
-    "config/**/*.js"
+    "src/database/migrations/**/*.js",
+    "src/database/seeders/**/*.ts",
+    "src/database/models/**/*.ts",
+    "src/config/**/*.js"
   ]
 }
