@@ -3,10 +3,13 @@ import {
   Column,
   DataType,
   Default,
+  HasMany,
   Model,
   PrimaryKey,
   Table,
 } from 'sequelize-typescript';
+import { Category } from 'src/category/entities/category.entity';
+import { Transaction } from 'src/transaction/entities/transaction.entity';
 
 @Table({
   tableName: 'users',
@@ -39,4 +42,10 @@ export class User extends Model<User> {
     type: DataType.STRING,
   })
   password: string;
+
+  @HasMany(() => Transaction)
+  transactions: Transaction[];
+
+  @HasMany(() => Category)
+  categories: Category[];
 }
