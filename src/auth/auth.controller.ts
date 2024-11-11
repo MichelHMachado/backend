@@ -7,6 +7,8 @@ import {
   Req,
   Get,
   ConflictException,
+  UseGuards,
+  Delete,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -14,6 +16,9 @@ import { Request, Response } from 'express';
 import { UserDto } from 'src/user/dto/create-user.dto';
 import { JwtService } from '@nestjs/jwt';
 import { parseCookies } from 'src/utils/cookieUtils';
+import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
+import { RefreshTokenGuard } from 'src/common/guards/refreshToken.guard';
+import { getAuthorizationToken } from 'src/utils/getAuthorizationToken';
 
 @Controller('auth')
 export class AuthController {
@@ -28,7 +33,6 @@ export class AuthController {
       secure: true,
       sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/auth/refresh',
     });
   }
 
@@ -55,12 +59,13 @@ export class AuthController {
     }
   }
 
-  @Post('logout')
+  @UseGuards(AccessTokenGuard)
+  @Delete('logout')
   logout(@Res() res: Response) {
     res.clearCookie('refresh_token', {
       httpOnly: true,
       secure: true,
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'none',
+      sameSite: 'strict',
     });
 
     return res.status(200).json({ message: 'Logged out successfully' });
@@ -80,6 +85,7 @@ export class AuthController {
       this.setRefreshTokenCookie(res, refresh_token);
       return res.status(HttpStatus.CREATED).json({ access_token });
     } catch (error) {
+      console.error(error);
       if (error instanceof ConflictException) {
         return res.status(HttpStatus.CONFLICT).json({ error: error.message });
       }
@@ -89,9 +95,10 @@ export class AuthController {
     }
   }
 
+  @UseGuards(AccessTokenGuard)
   @Get('check-auth')
   async checkAuth(@Req() req: Request, @Res() res: Response) {
-    const token = req.headers['authorization']?.split(' ')[1];
+    const token = getAuthorizationToken(req);
 
     if (!token) {
       return res
@@ -101,39 +108,36 @@ export class AuthController {
 
     try {
       const decoded = this.jwtService.verify(token);
+
       return res
         .status(HttpStatus.OK)
         .json({ isAuthenticated: true, user: decoded });
     } catch (error) {
       return res
         .status(HttpStatus.UNAUTHORIZED)
-        .json({ isAuthenticated: false, error });
+        .json({ isAuthenticated: false, error: error });
     }
   }
 
   @Post('refresh')
   async refreshAccessToken(@Req() req: Request, @Res() res: Response) {
     const cookies = parseCookies(req.headers.cookie);
-    const { refreshToken } = cookies;
-    if (!refreshToken) {
-      return res.status(403).json({ message: 'Refresh token missing' });
-    }
+    const { refresh_token } = cookies;
 
+    if (!refresh_token) {
+      return res
+        .status(HttpStatus.FORBIDDEN)
+        .json({ message: 'No token found', isAuthenticated: false });
+    }
     try {
-      const payload = this.jwtService.verify(refreshToken);
-      const accessTokenPayload = {
-        uuid: payload.uuid,
-        name: payload.name,
-        email: payload.email,
-      };
-      const { access_token, refresh_token } =
-        await this.authService.login(accessTokenPayload);
-      this.setRefreshTokenCookie(res, refresh_token);
-      return res.json({ access_token });
+      const { accessToken, refreshToken } =
+        await this.authService.refreshTokens(refresh_token);
+      this.setRefreshTokenCookie(res, refreshToken);
+      return res.json({ access_token: accessToken });
     } catch (error) {
       return res
         .status(HttpStatus.UNAUTHORIZED)
-        .json({ message: `Invalid or expired refresh token, ${error}` });
+        .json({ isAuthenticated: false, error });
     }
   }
 }

@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -37,9 +38,9 @@ export class AuthService {
 
   async login(user: any) {
     const { name, email, uuid } = user;
-    const accessToken = this.jwtService.sign(
+    const accessToken = await this.jwtService.signAsync(
       { uuid, name, email },
-      { expiresIn: '1h' },
+      { expiresIn: '15m' },
     );
     const refreshToken = this.jwtService.sign({ uuid }, { expiresIn: '7d' });
 
@@ -50,10 +51,7 @@ export class AuthService {
   }
 
   async signUp(userDto: UserDto) {
-    const existingUser = await this.validateUser(
-      userDto.email,
-      userDto.password,
-    );
+    const existingUser = await this.userService.findOneByEmail(userDto.email);
     if (existingUser) {
       throw new ConflictException('User already exists');
     }
@@ -63,5 +61,33 @@ export class AuthService {
       password: hashedPassword,
     });
     return user;
+  }
+
+  async refreshTokens(refreshToken: string) {
+    try {
+      const payload = this.jwtService.verify(refreshToken);
+
+      // Fetch the user details from the database using the uuid in the payload
+      const user = await this.userService.findOne(payload.uuid);
+
+      // Ensure that the user is found
+      if (!user) {
+        throw new ForbiddenException('User not found');
+      }
+
+      // Create the access token payload with the full user details
+      const accessTokenPayload = {
+        uuid: user.uuid,
+        name: user.name,
+        email: user.email,
+      };
+
+      const { access_token, refresh_token } =
+        await this.login(accessTokenPayload);
+
+      return { accessToken: access_token, refreshToken: refresh_token };
+    } catch (error) {
+      throw new ForbiddenException('Invalid refresh token', error);
+    }
   }
 }
