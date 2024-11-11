@@ -7,9 +7,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { Dialect } from 'sequelize';
+import { TransactionModule } from './transaction/transaction.module';
+import { CategoryModule } from './category/category.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     SequelizeModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -27,6 +32,8 @@ import { Dialect } from 'sequelize';
 
     AuthModule,
     UserModule,
+    TransactionModule,
+    CategoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
