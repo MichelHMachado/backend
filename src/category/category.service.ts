@@ -3,14 +3,20 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { InjectModel } from '@nestjs/sequelize';
 import { Category } from './entities/category.entity';
+import { Transaction } from 'sequelize';
 
 @Injectable()
 export class CategoryService {
   constructor(
     @InjectModel(Category) private readonly categoryModel: typeof Category,
   ) {}
-  async create(createCategoryDto: CreateCategoryDto) {
-    const category = await this.categoryModel.create(createCategoryDto);
+  async create(
+    createCategoryDto: CreateCategoryDto,
+    transaction?: Transaction,
+  ) {
+    const category = await this.categoryModel.create(createCategoryDto, {
+      transaction,
+    });
     return category;
   }
 
@@ -24,8 +30,11 @@ export class CategoryService {
     return category;
   }
 
-  async findByName(name: string) {
-    const category = await this.categoryModel.findOne({ where: { name } });
+  async findByName(name: string, transaction?: Transaction) {
+    const category = await this.categoryModel.findOne({
+      where: { name },
+      transaction,
+    });
     return category;
   }
 

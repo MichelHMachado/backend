@@ -11,5 +11,6 @@ import { User } from 'src/user/entities/user.entity';
   imports: [SequelizeModule.forFeature([Category, Transaction, User])],
   controllers: [CategoryController],
   providers: [CategoryService],
+  exports: [CategoryService],
 })
 export class CategoryModule {}
