@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Req,
 } from '@nestjs/common';
 import { TransactionService } from './transaction.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -16,16 +17,26 @@ export class TransactionController {
   constructor(private readonly transactionService: TransactionService) {}
 
   @Post()
-  create(@Body() createTransactionDto: CreateTransactionDto) {
-    return this.transactionService.create(createTransactionDto);
+  create(
+    @Body() createTransactionDto: CreateTransactionDto,
+    @Req() req: Request,
+  ) {
+    const userUuid = req['user']?.uuid;
+    if (!userUuid) {
+      return { message: 'User not authenticated' };
+    }
+    return this.transactionService.create({
+      userUuid,
+      ...createTransactionDto,
+    });
   }
 
-  @Get()
-  findAll() {
-    return this.transactionService.findAll();
+  @Get(':limit?')
+  findAll(@Param('limit') limit?: number) {
+    return this.transactionService.findAll(limit || 100);
   }
 
-  @Get(':uuid')
+  @Get('details:uuid')
   findOne(@Param('uuid') uuid: string) {
     return this.transactionService.findOne(uuid);
   }

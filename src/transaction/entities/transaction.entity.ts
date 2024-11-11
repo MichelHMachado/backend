@@ -38,7 +38,7 @@ export class Transaction extends Model<Transaction> {
   amount: number;
 
   @Column({
-    type: DataType.STRING,
+    type: DataType.DATE,
   })
   date: string;
 

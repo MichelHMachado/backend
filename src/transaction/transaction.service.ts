@@ -1,24 +1,58 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { InjectModel } from '@nestjs/sequelize';
 import { Transaction } from './entities/transaction.entity';
+import { Category } from 'src/category/entities/category.entity';
+import { Sequelize } from 'sequelize-typescript';
+import { CategoryService } from 'src/category/category.service';
 
 @Injectable()
 export class TransactionService {
   constructor(
-    @InjectModel(Transaction)
-    private readonly transactionModel: typeof Transaction,
+    @InjectModel(Transaction) private transactionModel: typeof Transaction,
+    private categoryService: CategoryService,
+    private sequelize: Sequelize,
   ) {}
 
   async create(createTransactionDto: CreateTransactionDto) {
-    const financialTransaction =
-      await this.transactionModel.create(createTransactionDto);
-    return financialTransaction;
+    const transaction = await this.sequelize.transaction();
+    const { userUuid, categoryName, ...transactionDto } = createTransactionDto;
+
+    try {
+      let category = await this.categoryService.findByName(
+        categoryName,
+        transaction,
+      );
+
+      if (!category) {
+        category = await this.categoryService.create(
+          { userUuid, name: categoryName },
+          transaction,
+        );
+      }
+
+      const financialTransaction = await this.transactionModel.create(
+        { ...transactionDto, userUuid, categoryUuid: category.uuid },
+        { transaction },
+      );
+      await transaction.commit();
+      return financialTransaction;
+    } catch (error) {
+      await transaction.rollback();
+      throw new HttpException(
+        'Failed to create transaction: ' + (error as Error).message,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
-  async findAll() {
-    const financialTransactions = await this.transactionModel.findAll();
+  async findAll(limit: number = 100) {
+    const financialTransactions = await this.transactionModel.findAll({
+      limit,
+      order: [['date', 'DESC']],
+      include: [{ model: Category, as: 'category' }],
+    });
     return financialTransactions;
   }
 
